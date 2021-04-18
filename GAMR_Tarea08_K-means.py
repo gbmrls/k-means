@@ -34,7 +34,6 @@ def k_means(data, k = 2, centroids = None, max_iters = 100) :
         Centroids after k-means algorithm finishes.
 
     """
-    m = np.size(data, axis=0)
     if centroids == None :
         centroids = get_random_centroids(data, k)
         
@@ -44,21 +43,27 @@ def k_means(data, k = 2, centroids = None, max_iters = 100) :
     for i in range(max_iters) :
         old_centroids = centroids
                 
-        assigned_centroids = assign_centroid(data, centroids)
+        assigned_centroids = assign_centroids(data, centroids)
         
         # Sum the data by cluster
-        centroids = [0] * k
+        centroids = [[0]*data.shape[1]] * k
         values_in_centroid = [0] * k
-        for i in range(m) :
-            centroids[assigned_centroids[i]] += data[i]
-            values_in_centroid[assigned_centroids[i]] += 1
-        
+
+        for i in range(k) :
+            assigned_centroids_aux = np.column_stack([assigned_centroids]*data.shape[1])==i
+            centroids[i] = np.sum(np.multiply(data, assigned_centroids_aux), axis = 0)
+            values_in_centroid[i] = np.sum(assigned_centroids == i)
+
         # Mean
-        centroids = [centroids[i]/values_in_centroid[i] for i in range(k)]
+        for i in range(k) :
+            if values_in_centroid[i] > 0 :
+                centroids[i] = centroids[i]/values_in_centroid[i]
+
         centroids = np.stack(centroids, axis=0)
-        
+
         error = sum([np.linalg.norm(centroids[i] - old_centroids[i]) for i in range(k)])
         if(error < 1e-5) : break
+        
     
     return centroids
 
@@ -93,7 +98,7 @@ def get_random_centroids(data, k) :
         
     return np.matrix(centroids)
         
-def assign_centroid(data, centroids) :
+def assign_centroids(data, centroids) :
     """
     Function will calculate the data's distance to the centroids and return
     the index of the pertinent centroid.
@@ -110,18 +115,11 @@ def assign_centroid(data, centroids) :
         Index of pertinent centroid per row in data.
 
     """
-    m = np.size(data, axis=0)
     distances = []
-    for i in range(m) :
-        dist = []
-        for centroid in centroids :
-            dist.append((np.linalg.norm(data[i] - centroid)))
-        distances.append(dist)
-    distances = np.matrix(distances)
-    
-    assigned_centroids = []
-    for dist in distances :
-        assigned_centroids.append(np.argmin(dist))
+    for centroid in centroids :
+        distances.append(np.linalg.norm(data - centroid, axis=1))
+    distances = np.column_stack(distances)
+    assigned_centroids = np.argmin(distances, axis=1).flatten()
     return assigned_centroids
     
     
